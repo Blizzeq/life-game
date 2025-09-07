@@ -500,7 +500,6 @@ class UIController:
             for pattern in patterns[:3]:
                 if current_y <= relative_y < current_y + 18:
                     self.selected_pattern = pattern
-                    print(f"Selected pattern: {pattern}")
                     return
                 current_y += 18
             
@@ -732,8 +731,8 @@ class UIController:
                 screen.blit(instr_text, (self.panel_rect.x + 12, pattern_y + 32))
 
     def _draw_stats_overlay(self, screen):
-        overlay_width = min(400, self.screen_width - 100)
-        overlay_rect = pygame.Rect(50, 50, overlay_width, 300)
+        overlay_width = min(450, self.screen_width - 100)
+        overlay_rect = pygame.Rect(50, 50, overlay_width, 400)
         
         overlay_surface = pygame.Surface((overlay_rect.width, overlay_rect.height), pygame.SRCALPHA)
         overlay_surface.fill((20, 20, 30, 230))
@@ -743,6 +742,50 @@ class UIController:
         
         title = self.title_font.render("Statistics", True, (255, 255, 255))
         screen.blit(title, (overlay_rect.x + 10, overlay_rect.y + 10))
+        
+        y_offset = 45
+        counts = self.game.get_population_counts()
+        total_pop = sum(count for cell_type, count in counts.items() if cell_type != CellType.EMPTY)
+        
+        gen_text = self.font.render(f"Generation: {self.game.generation}", True, (255, 255, 255))
+        screen.blit(gen_text, (overlay_rect.x + 10, overlay_rect.y + y_offset))
+        y_offset += 25
+        
+        pop_text = self.font.render(f"Total Population: {total_pop:,}", True, (255, 255, 255))
+        screen.blit(pop_text, (overlay_rect.x + 10, overlay_rect.y + y_offset))
+        y_offset += 25
+        
+        energy_text = self.font.render(f"Total Energy: {self.game.total_energy:.1f}", True, (255, 255, 255))
+        screen.blit(energy_text, (overlay_rect.x + 10, overlay_rect.y + y_offset))
+        y_offset += 30
+        
+        species_title = self.font.render("Species Breakdown:", True, (200, 200, 200))
+        screen.blit(species_title, (overlay_rect.x + 10, overlay_rect.y + y_offset))
+        y_offset += 25
+        
+        for cell_type in [CellType.RED, CellType.GREEN, CellType.BLUE, CellType.QUANTUM]:
+            count = counts.get(cell_type, 0)
+            percentage = (count / total_pop * 100) if total_pop > 0 else 0
+            color = self.colors[cell_type]
+            
+            color_rect = pygame.Rect(overlay_rect.x + 15, overlay_rect.y + y_offset, 12, 12)
+            pygame.draw.rect(screen, color, color_rect, border_radius=2)
+            
+            text = self.small_font.render(f"{cell_type.name}: {count:,} ({percentage:.1f}%)", True, (255, 255, 255))
+            screen.blit(text, (overlay_rect.x + 35, overlay_rect.y + y_offset))
+            y_offset += 20
+        
+        y_offset += 15
+        entropy = self.game.calculate_entropy()
+        entropy_text = self.small_font.render(f"Entropy: {entropy:.3f}", True, (200, 200, 255))
+        screen.blit(entropy_text, (overlay_rect.x + 10, overlay_rect.y + y_offset))
+        y_offset += 18
+        
+        if len(self.game.population_history[CellType.RED]) > 1:
+            prev_total = sum(self.game.population_history[cell_type][-2] for cell_type in [CellType.RED, CellType.GREEN, CellType.BLUE, CellType.QUANTUM])
+            growth_rate = ((total_pop - prev_total) / prev_total * 100) if prev_total > 0 else 0
+            growth_text = self.small_font.render(f"Growth Rate: {growth_rate:+.1f}%", True, (255, 200, 200))
+            screen.blit(growth_text, (overlay_rect.x + 10, overlay_rect.y + y_offset))
         
         close_text = self.font.render("Click anywhere to close", True, (180, 180, 180))
         screen.blit(close_text, (overlay_rect.x + 10, overlay_rect.bottom - 30))
