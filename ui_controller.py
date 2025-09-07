@@ -327,6 +327,11 @@ class UIController:
             CellType.EMPTY: (80, 80, 80)
         }
         
+        self.undo_stack = []
+        self.redo_stack = []
+        self.max_undo_steps = 20
+        self.drawing_started = False
+        
         self._create_ui_elements()
 
     def _create_ui_elements(self):
@@ -546,8 +551,27 @@ class UIController:
             return True
         elif event.key == pygame.K_c:
             self.game.clear_grid()
+        elif event.key == pygame.K_q:
+            self.current_cell_type = CellType.RED
+            self._update_cell_button_selection()
+        elif event.key == pygame.K_w:
+            self.current_cell_type = CellType.GREEN
+            self._update_cell_button_selection()
+        elif event.key == pygame.K_e:
+            self.current_cell_type = CellType.BLUE
+            self._update_cell_button_selection()
+        elif event.key == pygame.K_r:
+            self.current_cell_type = CellType.QUANTUM
+            self._update_cell_button_selection()
+        elif event.key == pygame.K_0:
+            self.current_cell_type = CellType.EMPTY
+            self._update_cell_button_selection()
         elif event.key == pygame.K_h:
             self.show_ui = not self.show_ui
+        elif event.key == pygame.K_z and (pygame.key.get_pressed()[pygame.K_LCTRL] or pygame.key.get_pressed()[pygame.K_RCTRL]):
+            self._undo_action()
+        elif event.key == pygame.K_y and (pygame.key.get_pressed()[pygame.K_LCTRL] or pygame.key.get_pressed()[pygame.K_RCTRL]):
+            self._redo_action()
         elif event.key == pygame.K_1:
             self.current_cell_type = CellType.RED
             self._update_cell_button_selection()
@@ -573,15 +597,54 @@ class UIController:
         
         return False
 
+    def _save_state_for_undo(self):
+        import copy
+        state = copy.deepcopy(self.game.grid)
+        self.undo_stack.append(state)
+        if len(self.undo_stack) > self.max_undo_steps:
+            self.undo_stack.pop(0)
+        self.redo_stack.clear()
+
+    def _undo_action(self):
+        if self.undo_stack:
+            import copy
+            current_state = copy.deepcopy(self.game.grid)
+            self.redo_stack.append(current_state)
+            
+            previous_state = self.undo_stack.pop()
+            self.game.grid = previous_state
+            
+            for y in range(self.game.height):
+                for x in range(self.game.width):
+                    self.game.next_grid[y, x] = copy.deepcopy(self.game.grid[y, x])
+
+    def _redo_action(self):
+        if self.redo_stack:
+            import copy
+            current_state = copy.deepcopy(self.game.grid)
+            self.undo_stack.append(current_state)
+            
+            next_state = self.redo_stack.pop()
+            self.game.grid = next_state
+            
+            for y in range(self.game.height):
+                for x in range(self.game.width):
+                    self.game.next_grid[y, x] = copy.deepcopy(self.game.grid[y, x])
+
     def handle_mouse_input(self, mouse_pos: Tuple[int, int], mouse_buttons: Tuple[bool, bool, bool], visualizer):
         if self.show_stats or self.show_patterns or self.show_events:
             return
             
         if not self.drawing_mode or not mouse_buttons[0]:
+            self.drawing_started = False
             return
         
         if mouse_pos[0] >= self.screen_width - self.panel_width:
             return
+        
+        if not self.drawing_started:
+            self._save_state_for_undo()
+            self.drawing_started = True
         
         grid_x, grid_y = visualizer.world_to_grid(mouse_pos[0], mouse_pos[1])
         

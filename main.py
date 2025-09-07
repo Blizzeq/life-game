@@ -20,7 +20,9 @@ class QuantumLifeGame:
         available_height = screen_info.current_h - 150  # Leave margin for taskbar/titlebar
         
         # Game settings - adaptive to screen size
-        self.CELL_SIZE = max(6, min(12, available_width // 150))  # Adaptive cell size
+        self.CELL_SIZE = max(6, min(12, available_width // 150))
+        self.MIN_CELL_SIZE = 3
+        self.MAX_CELL_SIZE = 20
         
         # Calculate optimal grid and screen size
         ui_panel_width = int(available_width * 0.22)
@@ -85,6 +87,9 @@ class QuantumLifeGame:
             elif event.type == pygame.MOUSEBUTTONUP:
                 if event.button == 1:
                     self.ui_controller.drawing_mode = False
+                    self.ui_controller.drawing_started = False
+            elif event.type == pygame.MOUSEWHEEL:
+                self.handle_zoom(event.y)
         
         return True
 
@@ -92,8 +97,55 @@ class QuantumLifeGame:
         self.SCREEN_WIDTH = max(800, new_width)
         self.SCREEN_HEIGHT = max(600, new_height)
         self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT), pygame.RESIZABLE)
+        
+        ui_panel_width = int(self.SCREEN_WIDTH * 0.22)
+        ui_panel_width = max(240, min(320, ui_panel_width))
+        
+        game_area_width = self.SCREEN_WIDTH - ui_panel_width
+        game_area_height = self.SCREEN_HEIGHT
+        
+        new_grid_width = game_area_width // self.CELL_SIZE
+        new_grid_height = game_area_height // self.CELL_SIZE
+        
+        new_grid_width = max(40, new_grid_width)
+        new_grid_height = max(30, new_grid_height)
+        
+        if new_grid_width != self.GRID_WIDTH or new_grid_height != self.GRID_HEIGHT:
+            self.GRID_WIDTH = new_grid_width
+            self.GRID_HEIGHT = new_grid_height
+            self.game.resize_grid(self.GRID_WIDTH, self.GRID_HEIGHT)
+        
         self.ui_controller.resize(self.SCREEN_WIDTH, self.SCREEN_HEIGHT)
         self.visualizer.initialize_surfaces(self.screen)
+
+    def handle_zoom(self, zoom_direction: int):
+        if zoom_direction > 0:
+            new_cell_size = min(self.MAX_CELL_SIZE, self.CELL_SIZE + 1)
+        else:
+            new_cell_size = max(self.MIN_CELL_SIZE, self.CELL_SIZE - 1)
+        
+        if new_cell_size != self.CELL_SIZE:
+            self.CELL_SIZE = new_cell_size
+            self.visualizer.cell_size = self.CELL_SIZE
+            
+            ui_panel_width = int(self.SCREEN_WIDTH * 0.22)
+            ui_panel_width = max(240, min(320, ui_panel_width))
+            game_area_width = self.SCREEN_WIDTH - ui_panel_width
+            game_area_height = self.SCREEN_HEIGHT
+            
+            new_grid_width = game_area_width // self.CELL_SIZE
+            new_grid_height = game_area_height // self.CELL_SIZE
+            new_grid_width = max(40, new_grid_width)
+            new_grid_height = max(30, new_grid_height)
+            
+            if new_grid_width != self.GRID_WIDTH or new_grid_height != self.GRID_HEIGHT:
+                self.GRID_WIDTH = new_grid_width
+                self.GRID_HEIGHT = new_grid_height
+                self.game.resize_grid(self.GRID_WIDTH, self.GRID_HEIGHT)
+            
+            self.visualizer.screen_width = self.GRID_WIDTH * self.CELL_SIZE
+            self.visualizer.screen_height = self.GRID_HEIGHT * self.CELL_SIZE
+            self.visualizer.initialize_surfaces(self.screen)
 
     def update(self, dt):
         self.ui_controller.update(dt)

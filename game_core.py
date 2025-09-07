@@ -221,6 +221,27 @@ class GameOfLife:
             return self.grid[y, x]
         return None
 
+    def resize_grid(self, new_width: int, new_height: int):
+        old_grid = self.grid.copy()
+        old_width, old_height = self.width, self.height
+        
+        self.width = new_width
+        self.height = new_height
+        self.grid = np.zeros((new_height, new_width), dtype=object)
+        self.next_grid = np.zeros((new_height, new_width), dtype=object)
+        
+        for y in range(new_height):
+            for x in range(new_width):
+                self.grid[y, x] = Cell()
+                self.next_grid[y, x] = Cell()
+        
+        copy_width = min(old_width, new_width)
+        copy_height = min(old_height, new_height)
+        
+        for y in range(copy_height):
+            for x in range(copy_width):
+                self.grid[y, x] = old_grid[y, x]
+
     def clear_grid(self):
         for y in range(self.height):
             for x in range(self.width):
